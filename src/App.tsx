@@ -14,6 +14,8 @@ import NotFound from "./pages/NotFound";
 import { useAuth } from "./contexts/AuthContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
+console.log("✅ App.tsx loaded - All imports successful");
+
 const queryClient = new QueryClient();
 
 // Protected route wrapper

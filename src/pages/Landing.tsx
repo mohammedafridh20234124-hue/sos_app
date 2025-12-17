@@ -4,6 +4,7 @@ import { Shield, AlertTriangle } from "lucide-react";
 
 const Landing = () => {
   const navigate = useNavigate();
+  console.log("🎯 Landing page rendering...");
 
   return (
     <div 
