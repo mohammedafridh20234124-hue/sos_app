@@ -1242,6 +1242,214 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// ==================== Direct Media to Admin Endpoint ====================
+
+// Store emergency media for admin retrieval (organized by alert)
+let emergencyMediaStore = {};
+const MAX_MEDIA_ALERTS = 100;
+
+// Send media directly to admin during SOS emergency
+app.post('/api/send-media-to-admin', uploadMulter.any(), async (req, res) => {
+  try {
+    const { studentName, studentId, alertId, location } = req.body;
+
+    if (!studentId || !alertId) {
+      return res.status(400).json({
+        error: 'Missing required fields',
+        required: ['studentId', 'alertId']
+      });
+    }
+
+    console.log(`\n📤 [api/send-media-to-admin] Receiving emergency media from ${studentName} (${studentId})`);
+    console.log(`   Alert ID: ${alertId}`);
+
+    const files = req.files || [];
+    if (files.length === 0) {
+      return res.status(400).json({
+        error: 'No media files provided',
+        details: 'Please attach at least one media file (photo, video, or audio)'
+      });
+    }
+
+    // Initialize alert media store if not exists
+    if (!emergencyMediaStore[alertId]) {
+      emergencyMediaStore[alertId] = {
+        studentId,
+        studentName,
+        alertId,
+        location: location ? JSON.parse(location) : null,
+        createdAt: new Date().toISOString(),
+        media: []
+      };
+    }
+
+    const mediaItems = [];
+
+    // Process each file
+    for (const file of files) {
+      if (file && file.buffer && file.buffer.length > 0) {
+        const mediaId = `media_${alertId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const bufferPath = path.join(uploadsDir, `${mediaId}.buffer`);
+
+        try {
+          // Save file to disk
+          fs.writeFileSync(bufferPath, file.buffer);
+
+          const mediaItem = {
+            id: mediaId,
+            type: file.mimetype.startsWith('image/') ? 'image' : 
+                  file.mimetype.startsWith('audio/') ? 'audio' : 
+                  file.mimetype.startsWith('video/') ? 'video' : 'file',
+            originalName: file.originalname,
+            mimeType: file.mimetype,
+            size: file.size,
+            timestamp: new Date().toISOString()
+          };
+
+          emergencyMediaStore[alertId].media.push(mediaItem);
+          mediaItems.push(mediaItem);
+
+          const sizeKB = (file.size / 1024).toFixed(1);
+          console.log(`   ✅ Media saved: ${file.originalname} (${sizeKB} KB, ${mediaItem.type})`);
+        } catch (err) {
+          console.error(`   ❌ Failed to save media: ${err.message}`);
+        }
+      }
+    }
+
+    // Cleanup old alerts if storage exceeds limit
+    const alertIds = Object.keys(emergencyMediaStore);
+    if (alertIds.length > MAX_MEDIA_ALERTS) {
+      const oldestAlert = alertIds[0];
+      console.log(`📁 Removing old alert media to free space: ${oldestAlert}`);
+      
+      // Delete media files
+      if (emergencyMediaStore[oldestAlert]) {
+        emergencyMediaStore[oldestAlert].media.forEach(m => {
+          try {
+            fs.unlinkSync(path.join(uploadsDir, `${m.id}.buffer`));
+          } catch (e) {
+            console.warn(`⚠ Could not delete file: ${m.id}`);
+          }
+        });
+      }
+      delete emergencyMediaStore[oldestAlert];
+    }
+
+    console.log(`✅ Emergency media received and stored (${mediaItems.length} items)`);
+
+    res.json({
+      success: true,
+      message: 'Media received and stored for admin review',
+      alertId,
+      mediaCount: mediaItems.length,
+      media: mediaItems,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error processing media:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to process media',
+      details: error.message
+    });
+  }
+});
+
+// Get all emergency media for admin
+app.get('/api/admin/emergency-media', (req, res) => {
+  try {
+    console.log(`📊 /api/admin/emergency-media - Returning ${Object.keys(emergencyMediaStore).length} alerts`);
+
+    const alerts = Object.values(emergencyMediaStore)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.json({
+      success: true,
+      count: alerts.length,
+      data: alerts,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error fetching emergency media:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch emergency media'
+    });
+  }
+});
+
+// Get specific alert media
+app.get('/api/admin/emergency-media/:alertId', (req, res) => {
+  try {
+    const { alertId } = req.params;
+    const alert = emergencyMediaStore[alertId];
+
+    if (!alert) {
+      return res.status(404).json({
+        success: false,
+        error: 'Alert media not found'
+      });
+    }
+
+    console.log(`📊 Retrieving media for alert: ${alertId} (${alert.media.length} items)`);
+
+    res.json({
+      success: true,
+      data: alert,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error fetching alert media:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch alert media'
+    });
+  }
+});
+
+// Download specific media file
+app.get('/api/admin/emergency-media/:alertId/file/:mediaId', (req, res) => {
+  try {
+    const { alertId, mediaId } = req.params;
+    const bufferPath = path.join(uploadsDir, `${mediaId}.buffer`);
+
+    if (!fs.existsSync(bufferPath)) {
+      console.warn(`⚠ Media file not found: ${mediaId}`);
+      return res.status(404).json({ error: 'Media file not found' });
+    }
+
+    const alert = emergencyMediaStore[alertId];
+    if (!alert) {
+      return res.status(404).json({ error: 'Alert not found' });
+    }
+
+    const mediaItem = alert.media.find(m => m.id === mediaId);
+    if (!mediaItem) {
+      return res.status(404).json({ error: 'Media not found in alert' });
+    }
+
+    const buffer = fs.readFileSync(bufferPath);
+    const sizeKB = (buffer.length / 1024).toFixed(1);
+
+    console.log(`📥 Downloading emergency media: ${mediaItem.originalName} (${sizeKB} KB)`);
+
+    res.set({
+      'Content-Type': mediaItem.mimeType || 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${mediaItem.originalName}"`,
+      'X-Alert-ID': alertId,
+      'X-Media-ID': mediaId
+    });
+    res.send(buffer);
+  } catch (error) {
+    console.error('❌ Error downloading media:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to download media'
+    });
+  }
+});
+
 // ==================== MySQL Notifications Endpoint ====================
 
 // Create MySQL connection pool
@@ -1347,8 +1555,12 @@ app.get('/api/mysql/health', async (req, res) => {
 
 // ==================== Student Feedback Endpoint ====================
 
-// Send student feedback to admin via Twilio SMS
-app.post('/api/feedback', async (req, res) => {
+// Store feedback in memory for admin retrieval
+let feedbackStore = [];
+const MAX_FEEDBACK = 1000;
+
+// Send student feedback to admin via Twilio SMS (with optional media)
+app.post('/api/feedback', uploadMulter.any(), async (req, res) => {
   try {
     const { studentName, studentId, feedbackMessage } = req.body;
 
@@ -1363,26 +1575,187 @@ app.post('/api/feedback', async (req, res) => {
     console.log(`\n📢 [api/feedback] Feedback received from student: ${studentName} (${studentId})`);
     console.log(`   Message: ${feedbackMessage.substring(0, 100)}...`);
 
-    // Send feedback via Twilio SMS
+    // Extract any attached files
+    let attachmentIds = [];
+    const files = req.files || [];
+    
+    for (const file of files) {
+      if (file && file.buffer && file.buffer.length > 0) {
+        const attachmentId = `feedback_${studentId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const bufferPath = path.join(uploadsDir, `${attachmentId}.buffer`);
+        
+        try {
+          fs.writeFileSync(bufferPath, file.buffer);
+          attachmentIds.push({
+            id: attachmentId,
+            originalName: file.originalname,
+            mimeType: file.mimetype,
+            size: file.size
+          });
+          console.log(`   📎 Attachment saved: ${file.originalname} (${(file.size / 1024).toFixed(1)} KB)`);
+        } catch (err) {
+          console.error(`   ❌ Failed to save attachment: ${err.message}`);
+        }
+      }
+    }
+
+    // Create feedback entry
+    const feedbackEntry = {
+      id: `feedback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      studentName,
+      studentId,
+      feedbackMessage,
+      attachments: attachmentIds,
+      timestamp: new Date().toISOString(),
+      read: false,
+      adminNotes: ''
+    };
+
+    // Store feedback for admin to retrieve
+    feedbackStore.push(feedbackEntry);
+    if (feedbackStore.length > MAX_FEEDBACK) {
+      feedbackStore.shift(); // Remove oldest if over limit
+    }
+
+    console.log(`✅ Feedback stored for admin (${attachmentIds.length} attachments)`);
+
+    // Send feedback via Twilio SMS (text only)
     const success = await sendFeedbackNotification(studentName, studentId, feedbackMessage);
 
-    if (success) {
-      res.json({ 
-        success: true, 
-        message: 'Feedback sent successfully',
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      res.status(500).json({ 
-        error: 'Failed to send feedback notification',
-        details: 'Twilio service may not be configured'
-      });
-    }
+    res.json({ 
+      success: true, 
+      message: 'Feedback sent successfully',
+      feedbackId: feedbackEntry.id,
+      attachmentCount: attachmentIds.length,
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error('❌ Error processing feedback:', error);
     res.status(500).json({ 
       error: 'Failed to process feedback', 
       details: error.message 
+    });
+  }
+});
+
+// Get all feedback for admin dashboard
+app.get('/api/admin/feedback', (req, res) => {
+  try {
+    console.log(`📊 /api/admin/feedback - Returning ${feedbackStore.length} feedback entries`);
+    
+    // Return feedback in reverse chronological order
+    const sortedFeedback = [...feedbackStore].reverse();
+    
+    res.json({
+      success: true,
+      count: feedbackStore.length,
+      data: sortedFeedback,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error fetching feedback:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch feedback',
+      details: error.message
+    });
+  }
+});
+
+// Get attachment by ID (for admin to download)
+app.get('/api/admin/feedback/:feedbackId/attachment/:attachmentId', (req, res) => {
+  try {
+    const { attachmentId } = req.params;
+    const bufferPath = path.join(uploadsDir, `${attachmentId}.buffer`);
+
+    if (!fs.existsSync(bufferPath)) {
+      return res.status(404).json({ error: 'Attachment not found' });
+    }
+
+    const buffer = fs.readFileSync(bufferPath);
+    const feedback = feedbackStore.find(f => 
+      f.attachments.some(a => a.id === attachmentId)
+    );
+
+    if (!feedback) {
+      return res.status(404).json({ error: 'Feedback entry not found' });
+    }
+
+    const attachment = feedback.attachments.find(a => a.id === attachmentId);
+    
+    console.log(`📥 Downloading attachment: ${attachment.originalName} (${(buffer.length / 1024).toFixed(1)} KB)`);
+
+    res.set({
+      'Content-Type': attachment.mimeType || 'application/octet-stream',
+      'Content-Disposition': `attachment; filename="${attachment.originalName}"`
+    });
+    res.send(buffer);
+  } catch (error) {
+    console.error('❌ Error retrieving attachment:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve attachment',
+      details: error.message
+    });
+  }
+});
+
+// Mark feedback as read
+app.post('/api/admin/feedback/:feedbackId/read', (req, res) => {
+  try {
+    const { feedbackId } = req.params;
+    const feedback = feedbackStore.find(f => f.id === feedbackId);
+
+    if (!feedback) {
+      return res.status(404).json({ error: 'Feedback not found' });
+    }
+
+    feedback.read = true;
+    console.log(`✓ Feedback marked as read: ${feedbackId}`);
+
+    res.json({
+      success: true,
+      message: 'Feedback marked as read',
+      feedback
+    });
+  } catch (error) {
+    console.error('❌ Error marking feedback as read:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to mark feedback as read'
+    });
+  }
+});
+
+// Add admin notes to feedback
+app.post('/api/admin/feedback/:feedbackId/notes', (req, res) => {
+  try {
+    const { feedbackId } = req.params;
+    const { notes } = req.body;
+
+    if (!notes) {
+      return res.status(400).json({ error: 'Notes are required' });
+    }
+
+    const feedback = feedbackStore.find(f => f.id === feedbackId);
+
+    if (!feedback) {
+      return res.status(404).json({ error: 'Feedback not found' });
+    }
+
+    feedback.adminNotes = notes;
+    console.log(`✓ Admin notes added to feedback: ${feedbackId}`);
+
+    res.json({
+      success: true,
+      message: 'Notes added successfully',
+      feedback
+    });
+  } catch (error) {
+    console.error('❌ Error adding notes:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add notes'
     });
   }
 });
@@ -1466,8 +1839,32 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`📧 Email service: ${emailTransporter ? 'Configured' : 'Not configured'}`);
   console.log(`📱 Twilio SMS: ${twilioClient ? 'Configured' : 'Not configured'}`);
   console.log(`\n📌 Available Endpoints:`);
+  console.log(`   AUTHENTICATION & NOTIFICATIONS:`);
   console.log(`   POST /api/send-otp - Send OTP via email`);
   console.log(`   POST /api/send-sms-otp - Send OTP via SMS`);
+  console.log(`\n   EMERGENCY ALERTS & LOCATION:`);
+  console.log(`   POST /api/location-update - Receive location updates during emergency`);
+  console.log(`   POST /api/send-notification - Send notification`);
+  console.log(`\n   MEDIA STREAMING & STORAGE:`);
+  console.log(`   POST /api/receive - Receive live video/audio frames (multipart FormData)`);
+  console.log(`   POST /api/send-media-to-admin - Send emergency media directly to admin`);
+  console.log(`   GET  /api/admin/emergency-media - Get all emergency media alerts`);
+  console.log(`   GET  /api/admin/emergency-media/:alertId - Get media for specific alert`);
+  console.log(`   GET  /api/admin/emergency-media/:alertId/file/:mediaId - Download media file`);
+  console.log(`   GET  /api/recordings - Get all recordings, photos, and audio clips`);
+  console.log(`   GET  /api/photo/:id - Get specific photo by ID`);
+  console.log(`   GET  /api/video/:id - Get specific video by ID`);
+  console.log(`   GET  /api/audio/:id - Get specific audio clip by ID`);
+  console.log(`   POST /api/recordings/clear - Clear all recordings`);
+  console.log(`   DELETE /api/recording/:id - Delete specific recording`);
+  console.log(`\n   FEEDBACK SYSTEM:`);
+  console.log(`   POST /api/feedback - Send student feedback (with optional media)`);
+  console.log(`   GET  /api/admin/feedback - Get all student feedback`);
+  console.log(`   GET  /api/admin/feedback/:feedbackId/attachment/:attachmentId - Download attachment`);
+  console.log(`   POST /api/admin/feedback/:feedbackId/read - Mark feedback as read`);
+  console.log(`   POST /api/admin/feedback/:feedbackId/notes - Add admin notes`);
+  console.log(`\n   SYSTEM:`);
+  console.log(`   GET  /api/health - Health check`);
 });
 
 server.on('error', (err) => {
