@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - Campus Security</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+            animation: slideDown 0.5s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 28px;
+        }
+
+        .header-info h1 {
+            color: #2c3e50;
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header-info p {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-email {
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .user-status {
+            color: #27ae60;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            justify-content: flex-end;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #27ae60;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .logout-btn {
+            padding: 10px 20px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            animation: fadeIn 0.6s ease-out;
+            transition: all 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-icon {
+            width: 50px;
+            height: 50px;
+            background: #f0f4ff;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+
+        .card h3 {
+            color: #2c3e50;
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .card p {
+            color: #7f8c8d;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .card-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .card-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .welcome-section {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            animation: slideUp 0.6s ease-out;
+            text-align: center;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .welcome-icon {
+            font-size: 60px;
+            margin-bottom: 15px;
+        }
+
+        .welcome-section h2 {
+            color: #2c3e50;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .welcome-section p {
+            color: #7f8c8d;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .welcome-subtext {
+            color: #27ae60;
+            font-weight: 600;
+            font-size: 16px;
+            margin-top: 15px;
+        }
+
+        footer {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            color: white;
+            font-size: 14px;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .feature-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .feature-item:hover {
+            background: #f0f4ff;
+            transform: translateY(-3px);
+        }
+
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .feature-text {
+            color: #2c3e50;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .header-left, .header-right {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .user-info {
+                text-align: center;
+            }
+
+            .user-status {
+                justify-content: center;
+            }
+
+            .welcome-section h2 {
+                font-size: 24px;
+            }
+
+            .feature-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="header-left">
+                <div class="logo-icon">🎓</div>
+                <div class="header-info">
+                    <h1>Campus Security</h1>
+                    <p>Student Dashboard</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <div class="user-email" id="userEmail">Loading...</div>
+                    <div class="user-status">
+                        <span class="status-dot"></span>
+                        <span>Verified</span>
+                    </div>
+                </div>
+                <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+            </div>
+        </header>
+
+        <!-- Welcome Section -->
+        <div class="welcome-section">
+            <div class="welcome-icon">👋</div>
+            <h2>Welcome to Campus Security!</h2>
+            <p>You are successfully logged in and verified.</p>
+            <p class="welcome-subtext">✓ Your account is secure and protected</p>
+        </div>
+
+        <!-- Main Features -->
+        <div class="main-content">
+            <div class="card">
+                <div class="card-icon">🆘</div>
+                <h3>Emergency SOS</h3>
+                <p>Instantly alert campus security in case of emergency with one tap.</p>
+                <button class="card-btn" onclick="goToPage('sos')">Access SOS</button>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">📍</div>
+                <h3>Share Location</h3>
+                <p>Share your real-time location with trusted friends and family.</p>
+                <button class="card-btn" onclick="goToPage('location')">Share Location</button>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">💬</div>
+                <h3>Campus Assistant</h3>
+                <p>Chat with our AI assistant for campus safety tips and information.</p>
+                <button class="card-btn" onclick="goToPage('assistant')">Chat Now</button>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">📢</div>
+                <h3>Announcements</h3>
+                <p>Get important safety announcements and alerts from campus security.</p>
+                <button class="card-btn" onclick="goToPage('announcements')">View Alerts</button>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">⚙️</div>
+                <h3>Settings</h3>
+                <p>Manage your account settings and notification preferences.</p>
+                <button class="card-btn" onclick="goToPage('settings')">Manage Settings</button>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">❓</div>
+                <h3>Help & Support</h3>
+                <p>Get help with common questions and contact support team.</p>
+                <button class="card-btn" onclick="goToPage('help')">Get Help</button>
+            </div>
+        </div>
+
+        <!-- Features Overview -->
+        <div style="background: white; padding: 30px; border-radius: 12px; margin-bottom: 30px;">
+            <h3 style="color: #2c3e50; margin-bottom: 20px; text-align: center;">Key Features</h3>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <div class="feature-icon">🔐</div>
+                    <div class="feature-text">Secure Login</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">📧</div>
+                    <div class="feature-text">OTP Verification</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">⏱️</div>
+                    <div class="feature-text">Real-time Alerts</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🗺️</div>
+                    <div class="feature-text">GPS Tracking</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">📱</div>
+                    <div class="feature-text">Mobile Ready</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🛡️</div>
+                    <div class="feature-text">Protected Data</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>&copy; 2025 Campus Security System. All rights reserved. | <a href="#" style="color: white; text-decoration: none;">Privacy Policy</a> | <a href="#" style="color: white; text-decoration: none;">Terms of Service</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // Session Protection - Check if user is logged in
+        function checkSession() {
+            const session = sessionStorage.getItem('verified_email');
+            const localStorage_verified = localStorage.getItem('chatbot_messages'); // Additional check
+
+            if (!session) {
+                // Session expired or user not logged in
+                console.warn('Session expired. Redirecting to login...');
+                window.location.href = 'login.html';
+            } else {
+                // Display user email
+                displayUserInfo();
+            }
+        }
+
+        // Display user information
+        function displayUserInfo() {
+            const email = sessionStorage.getItem('verified_email');
+            if (email) {
+                document.getElementById('userEmail').textContent = email;
+            }
+        }
+
+        // Logout function
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                // Clear session
+                sessionStorage.removeItem('verified_email');
+                sessionStorage.removeItem('verified_at');
+                
+                // Show logout animation
+                document.body.style.opacity = '0.5';
+                
+                // Redirect to login
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 500);
+            }
+        }
+
+        // Navigate to different pages
+        function goToPage(page) {
+            const pages = {
+                'sos': '/dashboard#sos',
+                'location': '/dashboard#location',
+                'assistant': '/dashboard#assistant',
+                'announcements': '/dashboard#announcements',
+                'settings': '/dashboard#settings',
+                'help': '/dashboard#help'
+            };
+
+            if (pages[page]) {
+                window.location.href = pages[page];
+            } else {
+                alert('Feature coming soon!');
+            }
+        }
+
+        // Session timeout (30 minutes)
+        const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+        let sessionTimer;
+
+        function resetSessionTimer() {
+            clearTimeout(sessionTimer);
+            sessionTimer = setTimeout(() => {
+                alert('Your session has expired. Please login again.');
+                logout();
+            }, SESSION_TIMEOUT);
+        }
+
+        // Reset timer on user activity
+        document.addEventListener('mousemove', resetSessionTimer);
+        document.addEventListener('keypress', resetSessionTimer);
+        document.addEventListener('click', resetSessionTimer);
+
+        // Initialize
+        window.addEventListener('load', () => {
+            checkSession();
+            resetSessionTimer();
+        });
+
+        // Prevent back button after logout
+        history.pushState(null, null, location.href);
+        window.addEventListener('popstate', function(event) {
+            if (!sessionStorage.getItem('verified_email')) {
+                window.location.href = 'login.html';
+            }
+        });
+    </script>
+</body>
+</html>

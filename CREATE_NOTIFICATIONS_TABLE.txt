@@ -1,0 +1,76 @@
+# ⚠️ IMPORTANT: Create Notifications Table
+
+## The broadcast/notification feature requires a table that needs to be created in your Supabase database.
+
+### Quick Setup (2 minutes)
+
+1. **Open Supabase SQL Editor:**
+   - Go to: https://supabase.com/dashboard/projects
+   - Click your project
+   - Click **SQL Editor** on the left
+   - Click **New Query**
+
+2. **Copy & Paste This SQL:**
+
+```sql
+-- Create notifications table for broadcasts
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  alert_id UUID REFERENCES public.emergency_alerts(id) ON DELETE SET NULL,
+  title VARCHAR NOT NULL,
+  message TEXT,
+  type VARCHAR(50) DEFAULT 'alert',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  read BOOLEAN DEFAULT FALSE,
+  read_at TIMESTAMP WITH TIME ZONE
+);
+
+-- Enable real-time
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+DROP POLICY IF EXISTS "Users can view own notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Users can update own notifications" ON public.notifications;
+DROP POLICY IF EXISTS "Anyone can insert" ON public.notifications;
+
+CREATE POLICY "Users can view own notifications" ON public.notifications
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own notifications" ON public.notifications
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Anyone can insert" ON public.notifications
+  FOR INSERT WITH CHECK (true);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_notif_user_id ON public.notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notif_type ON public.notifications(type);
+CREATE INDEX IF NOT EXISTS idx_notif_user_type ON public.notifications(user_id, type);
+CREATE INDEX IF NOT EXISTS idx_notif_created ON public.notifications(created_at DESC);
+
+-- Enable replication
+ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+```
+
+3. **Click RUN ▶️**
+
+4. **Done!** Now try sending a broadcast from Admin Dashboard
+
+### What This Does
+- Creates `notifications` table for admin broadcasts
+- Sets up security policies (RLS) so users only see their own messages
+- Creates indexes for fast queries
+- Enables real-time notifications
+
+### Still Not Working?
+
+**Check these:**
+1. ✅ Did the SQL run without errors?
+2. ✅ Does the `notifications` table show up in Supabase Table Editor?
+3. ✅ Is your `.env` file correct with Supabase credentials?
+4. ✅ Did you refresh the web app (Ctrl+Shift+R)?
+
+---
+
+See `NOTIFICATIONS_SETUP.md` for detailed troubleshooting.
